@@ -18,20 +18,37 @@ $Promise.prototype.then = function(success, error){
 		e = error;
 	}
 
-	this.handlerGroups.push({successCb: s, errorCb: e});
+	this.handlerGroups.push({successCb: s, errorCb: e, forwarder: new Deferral()});
+
+
+
 
 	if(this.state === "resolved" || this.state === "rejected"){
 		return this.callHandlers(this.value);
 	}
+	return this.handlerGroups[0].forwarder.$promise;
 }
 
 $Promise.prototype.callHandlers = function(value){
 	var thisCall = this.handlerGroups.shift();
-	if (this.state === "resolved" && typeof thisCall.successCb === "function"){
-		return thisCall.successCb(value);
+	if (this.state === "resolved"){
+		if(typeof thisCall.successCb === "function"){
+			var theValue = thisCall.forwarder.$promise.value
+			theValue = thisCall.successCb(value);
+			thisCall.forwarder.resolve(theValue);
+		} else {
+
+			thisCall.forwarder.resolve(value);
+		}
 	}
-	else if (this.state === "rejected" && typeof thisCall.errorCb === "function"){
-		return thisCall.errorCb(value);
+	else if (this.state === "rejected"){
+		if(typeof thisCall.errorCb === "function"){
+			var theValue = thisCall.forwarder.$promise.value
+			theValue = thisCall.errorCb(value);
+			thisCall.forwarder.resolve(theValue);
+		} else {
+			thisCall.forwarder.reject(value);
+		}
 	}
 	
 }

@@ -132,7 +132,6 @@ describe('A promise', function(){
       numDeferral.resolve( 25 );
       expect( foo ).toBe( 35 );
     });
-
   });
 
 });
