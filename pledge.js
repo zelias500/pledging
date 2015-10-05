@@ -20,9 +20,6 @@ $Promise.prototype.then = function(success, error){
 
 	this.handlerGroups.push({successCb: s, errorCb: e, forwarder: new Deferral()});
 
-
-
-
 	if(this.state === "resolved" || this.state === "rejected"){
 		return this.callHandlers(this.value);
 	}
@@ -31,26 +28,33 @@ $Promise.prototype.then = function(success, error){
 
 $Promise.prototype.callHandlers = function(value){
 	var thisCall = this.handlerGroups.shift();
-	if (this.state === "resolved"){
-		if(typeof thisCall.successCb === "function"){
-			var theValue = thisCall.forwarder.$promise.value
-			theValue = thisCall.successCb(value);
-			thisCall.forwarder.resolve(theValue);
-		} else {
 
-			thisCall.forwarder.resolve(value);
+	// fwd: promiseB
+	// successCB returns promiseZ
+
+	try {  
+		if (this.state === "resolved"){
+			if(typeof thisCall.successCb === "function"){
+				var theValue = thisCall.forwarder.$promise.value
+				theValue = thisCall.successCb(value);
+				thisCall.forwarder.resolve(theValue);
+			} else {
+				thisCall.forwarder.resolve(value);
+			}
+		}
+		else if (this.state === "rejected"){
+			if(typeof thisCall.errorCb === "function"){
+				var theValue = thisCall.forwarder.$promise.value
+				theValue = thisCall.errorCb(value);
+				thisCall.forwarder.resolve(theValue);
+			} else {
+				thisCall.forwarder.reject(value);
+			}
 		}
 	}
-	else if (this.state === "rejected"){
-		if(typeof thisCall.errorCb === "function"){
-			var theValue = thisCall.forwarder.$promise.value
-			theValue = thisCall.errorCb(value);
-			thisCall.forwarder.resolve(theValue);
-		} else {
-			thisCall.forwarder.reject(value);
-		}
+	catch (e){
+		thisCall.forwarder.reject(e);
 	}
-	
 }
 
 $Promise.prototype.catch = function(errorFn){
@@ -63,8 +67,18 @@ var Deferral = function(){
 
 Deferral.prototype.resolve = function(someValue){
 	if (this.$promise.state === "pending"){
-		this.$promise.value = someValue;
-		this.$promise.state = "resolved";
+		if (someValue instanceof $Promise){
+			console.log(this)
+			var self = this;
+		 	// then copy its behavior
+		 	someValue.then(function(whatever){
+		 		self.resolve(whatever);		 	
+		 	})
+		}
+		else {
+			this.$promise.value = someValue;
+			this.$promise.state = "resolved";
+		}
 		while(this.$promise.handlerGroups.length > 0){
 			this.$promise.callHandlers(this.$promise.value);
 		}	
