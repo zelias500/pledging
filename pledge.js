@@ -3,12 +3,13 @@ Promises Workshop: build the pledge.js deferral-style promise library
 ----------------------------------------------------------------*/
 // YOUR CODE HERE:
 var $Promise = function(){
-	this.value = null;
+	this.value;
 	this.state = "pending";
 	this.handlerGroups = [];
+	this.updateCbs = [];
 };
 
-$Promise.prototype.then = function(success, error){
+$Promise.prototype.then = function(success, error, update){
 	var s, e;
 	if(typeof success === 'function' ){
 		s = success;
@@ -17,7 +18,9 @@ $Promise.prototype.then = function(success, error){
 	if(typeof error === 'function'){
 		e = error;
 	}
-
+	if (typeof update === 'function'){
+		this.updateCbs.push(update)
+	}
 	this.handlerGroups.push({successCb: s, errorCb: e, forwarder: new Deferral()});
 
 	if(this.state === "resolved" || this.state === "rejected"){
@@ -28,10 +31,6 @@ $Promise.prototype.then = function(success, error){
 
 $Promise.prototype.callHandlers = function(value){
 	var thisCall = this.handlerGroups.shift();
-
-	// fwd: promiseB
-	// successCB returns promiseZ
-
 	try {  
 		if (this.state === "resolved"){
 			if(typeof thisCall.successCb === "function"){
@@ -68,7 +67,7 @@ var Deferral = function(){
 Deferral.prototype.resolve = function(someValue){
 	if (this.$promise.state === "pending"){
 		if (someValue instanceof $Promise){
-			console.log(this)
+			// console.log(this)
 			var self = this;
 		 	// then copy its behavior
 		 	someValue.then(function(whatever){
@@ -95,15 +94,18 @@ Deferral.prototype.reject = function(someReason){
 	}
 }
 
+Deferral.prototype.notify = function(information){
+	if (this.$promise.state === "pending"){
+		this.$promise.updateCbs.forEach(function(callback){
+			if(information) callback(information);
+			else callback();
+		})		
+	}
+}
+
 var defer = function(){
 	return new Deferral();
 }
-
-
-
-
-
-
 
 /*-------------------------------------------------------
 The spec was designed to work with Test'Em, so we don't
